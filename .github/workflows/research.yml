@@ -1,0 +1,75 @@
+name: Product research
+
+on:
+  schedule:
+    - cron: "0 2,10,18 * * *"   # 3x daily (UTC) = 8am, 4pm, 12am Bangladesh time
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: product-research
+  cancel-in-progress: false
+
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - run: pip install -r requirements.txt
+
+      - name: Restore database from data branch
+        run: |
+          mkdir -p data
+          if git ls-remote --exit-code --heads origin data; then
+            git fetch origin data --depth=1
+            git show origin/data:research.db > data/research.db
+          fi
+
+      - name: Run pipeline
+        env:
+          REDDIT_CLIENT_ID: ${{ secrets.REDDIT_CLIENT_ID }}
+          REDDIT_CLIENT_SECRET: ${{ secrets.REDDIT_CLIENT_SECRET }}
+          REDDIT_USERNAME: ${{ secrets.REDDIT_USERNAME }}
+          ETSY_API_KEY: ${{ secrets.ETSY_API_KEY }}
+          ALI_APP_KEY: ${{ secrets.ALI_APP_KEY }}
+          ALI_APP_SECRET: ${{ secrets.ALI_APP_SECRET }}
+          ALI_TRACKING_ID: ${{ secrets.ALI_TRACKING_ID }}
+          CJ_API_KEY: ${{ secrets.CJ_API_KEY }}
+          EBAY_CLIENT_ID: ${{ secrets.EBAY_CLIENT_ID }}
+          EBAY_CLIENT_SECRET: ${{ secrets.EBAY_CLIENT_SECRET }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+          GOOGLE_SHEET_ID: ${{ secrets.GOOGLE_SHEET_ID }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          DIGEST_EMAIL_TO: ${{ secrets.DIGEST_EMAIL_TO }}
+        run: python main.py
+
+      - name: Save database to data branch
+        if: always()
+        run: |
+          [ -f data/research.db ] || exit 0
+          cp data/research.db /tmp/research.db
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git ls-remote --exit-code --heads origin data; then
+            git checkout -B data origin/data
+          else
+            git checkout --orphan data
+            git rm -rf . -q
+          fi
+          cp /tmp/research.db research.db
+          git add research.db
+          git commit -m "data: $(date -u +%Y-%m-%dT%H:%MZ)" || echo "no changes"
+          git push origin data

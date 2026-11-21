@@ -1,0 +1,64 @@
+# ─────────────────────────────────────────────────────────────
+# Hero Product Research — configuration
+# Every source can be switched off. Missing API keys = source skipped.
+# ─────────────────────────────────────────────────────────────
+
+run:
+  db_path: data/research.db
+  max_new_enrich_per_run: 25   # new products enriched per run (rate-limit safety)
+  reenrich_after_days: 3       # reuse cached enrichment for this many days
+  history_days: 14             # window for own rank history ("own Keepa")
+  top_n_digest: 10
+  sheet_days: 7                # products scored in the last N days go to the sheet
+
+amazon:
+  enabled: true
+  # slugs from amazon.com/Best-Sellers/zgbs/<slug>
+  categories: [home-garden, kitchen, pet-supplies, automotive, office-products]
+  best_sellers: true
+  movers_and_shakers: true
+  pages: 2                     # 50 items per page
+  delay_sec: [5, 11]
+
+reddit:
+  enabled: true
+  subreddits: [shutupandtakemymoney, BuyItForLife, INEEEEDIT, gadgets, HomeImprovement]
+  posts_per_sub: 30
+  min_score: 150
+  max_age_hours: 168
+
+etsy:
+  enabled: true
+  seed_keywords: [wall decor, desk organizer, pet hair remover, kitchen organizer, car organizer, led night light]
+  results_per_keyword: 25
+
+enrich:
+  trends: true
+  aliexpress: true
+  cj: true
+  ebay: true
+  trends_delay_sec: [6, 12]
+
+costs:                          # landed-cost model for buying in China -> shipping to US
+  bulk_discount: 0.25           # factory/bulk price vs AliExpress retail
+  freight_per_unit: 2.50        # USD, China -> US warehouse, per unit
+  duty_rate: 0.30               # SET from your HTS code + current tariffs
+  fulfillment_per_order: 4.00   # 3PL pick/pack + last-mile
+  payment_pct: 0.029
+  payment_fixed: 0.30
+  refund_allowance_pct: 0.05
+  default_markup: 3.0           # used when no market price is found
+  min_price: 25
+  min_breakeven_cpa: 15
+
+scoring:
+  thresholds: {priority: 80, research: 70, improve: 60}
+
+llm:
+  enabled: true
+  model: gemini-2.5-flash       # any Gemini model on the free tier
+  batch_size: 10
+
+# Titles containing these words are dropped early (compliance / IP risk)
+blocklist: [kids, baby, toddler, infant, supplement, vitamin, cosmetic, serum,
+            vape, knife, gun, lithium, apple, samsung, disney, nike, lego, stanley]
